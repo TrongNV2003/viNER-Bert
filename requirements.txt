@@ -1,0 +1,7 @@
+numpy==2.2.1
+onnxruntime==1.20.1
+scikit_learn==1.6.1
+seqeval==1.2.2
+torch==2.5.1+cu121
+tqdm==4.67.1
+transformers==4.47.0
