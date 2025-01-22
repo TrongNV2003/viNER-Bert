@@ -69,12 +69,19 @@ class Tester:
 
                 preds = torch.argmax(logits, dim=-1)
 
-                all_preds.extend(preds.cpu().numpy().tolist())
-                all_labels.extend(labels.cpu().numpy().tolist())
+                # Chỉ lấy các token mà labels không phải là -100
+                active_indices = labels.view(-1) != -100
+                filtered_labels = labels.view(-1)[active_indices].cpu().numpy().tolist()
+                filtered_preds = preds.view(-1)[active_indices].cpu().numpy().tolist()
+
+                all_preds.extend(filtered_preds)
+                all_labels.extend(filtered_labels)
 
                 for i in range(len(text_input_ids)):
-                    true_label_indices = labels.cpu().numpy()[i]
-                    predicted_label_indices = preds.cpu().numpy()[i]
+                    # Chỉ xử lý các token có nhãn không phải là -100
+                    active = labels[i].cpu().numpy() != -100
+                    true_label_indices = labels[i].cpu().numpy()[active]
+                    predicted_label_indices = preds[i].cpu().numpy()[active]
 
                     true_label_names = self._map_labels(true_label_indices)
                     predicted_label_names = self._map_labels(predicted_label_indices)
@@ -86,7 +93,6 @@ class Tester:
         total_time = time.time() - start_time
         num_samples = len(results)
 
-        
         with open(self.output_file, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=4)
         print(f"Results saved to {self.output_file}")
@@ -108,8 +114,7 @@ class Tester:
         Returns:
             list: Danh sách tên nhãn tương ứng.
         """
-        return [self.labels_mapping.get(idx, "O") if idx != -100 else "O" for idx in label_indices]
-
+        return [self.labels_mapping.get(idx, "O") for idx in label_indices]
 
     def score(self, true_labels: list, preds: list) -> None:
         """
@@ -120,8 +125,17 @@ class Tester:
             preds (list): Danh sách các sequence nhãn dự đoán.
         """
 
-        true_labels_names = [self._map_labels(seq) for seq in true_labels]
-        preds_labels_names = [self._map_labels(seq) for seq in preds]
+        # Chuyển đổi các nhãn thành tên nhãn
+        true_labels_names = [self.labels_mapping.get(idx, "O") for idx in true_labels]
+        preds_labels_names = [self.labels_mapping.get(idx, "O") for idx in preds]
+
+        # Sử dụng seqeval yêu cầu định dạng là list của list
+        # Vì bạn đang làm token-level, nên cần chuyển thành word-level nếu cần
+        # Tuy nhiên, với việc đã lọc các sub-tokens, bạn có thể tính toán trực tiếp
+
+        # Tạo danh sách các sequence, giả sử tất cả thuộc về một sequence
+        true_labels_names = [true_labels_names]
+        preds_labels_names = [preds_labels_names]
 
         precision = precision_score(true_labels_names, preds_labels_names)
         recall = recall_score(true_labels_names, preds_labels_names)
