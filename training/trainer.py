@@ -50,11 +50,19 @@ class LlmTrainer:
         )
         self.tokenizer = tokenizer
         self.model = model.to(self.device)
-        self.optimizer = AdamW(
-            self.model.parameters(),
-            lr=learning_rate,
-            weight_decay=weight_decay,
-        )
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": weight_decay,
+            },
+            {
+                "params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+            },
+        ]
+        self.optimizer = AdamW(optimizer_grouped_parameters, lr=learning_rate)
+        
         self.train_loss = AverageMeter()
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode="min", patience=2, factor=0.5)
@@ -92,7 +100,9 @@ class LlmTrainer:
                     self.optimizer.step()
 
                     self.train_loss.update(loss.item(), text_input_ids.size(0))
-                    tepoch.set_postfix({"train_loss": self.train_loss.avg})
+                    current_lr = self.scheduler.get_last_lr()[0]
+                    tepoch.set_postfix({"train_loss": self.train_loss.avg, "lr": current_lr})
+
                     tepoch.update(1)
 
             valid_loss = self.evaluate(self.valid_loader)
