@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import (
     AutoModelForTokenClassification,
-    RobertaTokenizerFast,
+    PhobertTokenizer,
 )
 
 from training.dataloader import Dataset, LlmDataCollator
@@ -19,13 +19,14 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--dataloader_workers", type=int, default=2)
 parser.add_argument("--device", type=str, default="cuda")
-parser.add_argument("--epochs", type=int, default=5)
+parser.add_argument("--epochs", type=int, default=7)
 parser.add_argument("--learning_rate", type=float, default=2e-5)
 parser.add_argument("--weight_decay", type=float, default=0.01)
 parser.add_argument("--max_length", type=int, default=256)
@@ -44,8 +45,8 @@ parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 
-def get_tokenizer(checkpoint: str) -> RobertaTokenizerFast:
-    tokenizer = RobertaTokenizerFast.from_pretrained(checkpoint, add_prefix_space=True, use_fast=True)
+def get_tokenizer(checkpoint: str) -> PhobertTokenizer:
+    tokenizer = PhobertTokenizer.from_pretrained(checkpoint, add_prefix_space=True, use_fast=True)
     return tokenizer
 
 
