@@ -58,6 +58,7 @@ def get_model(
         num_labels=num_labels,
         id2label=id2label,
         label2id=label2id,
+        ignore_mismatched_sizes=True,
     )
     model.resize_token_embeddings(len(tokenizer))
     model = model.to(device)
