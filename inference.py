@@ -1,22 +1,24 @@
 import torch
-from transformers import AutoModelForTokenClassification, AutoTokenizer
+from transformers import AutoModelForTokenClassification
 from training.preprocessing import TextPreprocess
 import json
 from typing import List, Union
+from tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
+
 preprocess = TextPreprocess()
 
 class Tester:
     def __init__(
         self,
         model: torch.nn.Module,
-        tokenizer: AutoTokenizer,
+        tokenizer: PhobertTokenizerFast,
         labels_mapping: dict,
         device: torch.device = None,
     ) -> None:
         """
         Args:
             model (torch.nn.Module): Mô hình đã huấn luyện.
-            tokenizer (AutoTokenizer): Tokenizer tương ứng với mô hình.
+            tokenizer (PhobertTokenizerFast): Tokenizer tương ứng với mô hình.
             labels_mapping (dict): Từ điển ánh xạ từ chỉ số nhãn sang tên nhãn, ví dụ {0: "O", 1: "B-PER", ...}.
             device (torch.device, optional): Thiết bị để chạy mô hình (CPU hoặc GPU). Nếu không cung cấp, tự động chọn.
         """
@@ -73,7 +75,7 @@ class Tester:
 
         # Lấy các từ gốc và loại bỏ các token padding
         tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
-        # Nếu bạn đã sử dụng `is_split_into_words=True`, bạn có thể cần ánh xạ lại với từ gốc
+        # Nếu đã sử dụng `is_split_into_words=True`, có thể cần ánh xạ lại với từ gốc
 
         # Tạo danh sách các từ và nhãn tương ứng, loại bỏ padding và các token đặc biệt
         word_labels = []
@@ -120,7 +122,7 @@ if __name__ == "__main__":
     MODEL_NAME = "bert-classification"
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer = PhobertTokenizerFast.from_pretrained(MODEL_NAME)
     model = AutoModelForTokenClassification.from_pretrained(MODEL_NAME)
     model.to(device)
     model.eval()
@@ -158,7 +160,7 @@ if __name__ == "__main__":
         print("Labels:", labels)
 
     """OUTPUT:
-    Text: Xin chào các bạn, tôi là Trọng, tôi năm nay 21 tuổi. Đồng thời tôi đến từ Hà Nội, mảnh đất của Việt Nam. Hôm nay tôi đi khám ở bệnh viện Bạch Mai. Tôi vào thăm bệnh nhân bị COVID-19 chiều ngày 15 tháng 9
+    Text: Xin chào các bạn, tôi là Trọng, tôi năm nay 18 tuổi. Đồng thời tôi đến từ Hà Nội, mảnh đất của Việt Nam. Hôm nay tôi đi khám ở bệnh viện Bạch Mai. Tôi vào thăm bệnh nhân bị COVID-19 chiều ngày 15 tháng 9
     Tokens: ['Xin', 'chào', 'các', 'bạn', ',', 'tôi', 'là', 'Trọng', ',', 'tôi', 'năm', 'nay', '18', 'tuổi', '.', 'Đồng_thời', 'tôi', 'đến', 'từ', 'Hà_Nội', ',', 'mảnh', 'đất', 'của', 'Việt_Nam', '.', 'Hôm_nay', 'tôi', 'đi', 'khám', 'ở', 'bệnh_viện', 'Bạch_Mai', '.', 'Tôi', 'vào', 'thăm', 'bệnh_nhân', 'bị', 'COVID-19', 'chiều', 'ngày', '15', 'tháng', '9']
-    Labels: ['O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-LOCATION', 'O', 'O', 'O', 'O', 'B-LOCATION', 'O', 'O', 'O', 'O', 'O', 'O', 'B-LOCATION', 'I-LOCATION', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-DATE', 'B-DATE', 'I-DATE']
+    Labels: ['O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-NAME', 'O', 'O', 'O', 'O', 'B-AGE', 'O', 'O', 'O', 'O', 'O', 'O', 'B-LOCATION', 'O', 'O', 'O', 'O', 'B-LOCATION', 'O', 'O', 'O', 'O', 'O', 'O', 'B-LOCATION', 'I-LOCATION', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-DATE', 'I-DATE', 'I-DATE']
     """

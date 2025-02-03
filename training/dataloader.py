@@ -49,6 +49,7 @@ class LlmDataCollator:
         self.max_length = max_length
         self.pad_mask_id = pad_mask_id
 
+# Fast tokenize and align labels with Phobert tokenizer model
     def __call__(self, batch: list) -> Mapping[str, torch.Tensor]:
         """
         Tokenize the batch of data and align labels with tokenized input.
@@ -62,54 +63,82 @@ class LlmDataCollator:
 
         all_words, all_tags = zip(*batch)
 
-        tokenized_inputs = []
+        tensor = self.tokenizer(
+            list(all_words),
+            is_split_into_words=True,
+            max_length=self.max_length,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
+        # tạo label_ids align với sub-words
         labels_batch = []
-
-        for words, tags in zip(all_words, all_tags):
-            tokens = []
-            labels = []
-            for word, tag in zip(words, tags):
-                word_tokens = self.tokenizer.tokenize(word)
-                if not word_tokens:
-                    word_tokens = [self.tokenizer.unk_token]
-                tokens.extend(word_tokens)
-                # Gán nhãn cho tất cả các sub-tokens của từ đó
-                labels.append(tag)  # Gán cho sub-token đầu tiên
-                for _ in word_tokens[1:]:
-                    labels.append(self.pad_mask_id)
+        for i in range(len(all_words)):
+            word_ids = tensor.word_ids(batch_index=i)
+            label_ids = []
+            for word_id in word_ids:
+                if word_id is None:
+                    label_ids.append(self.pad_mask_id)  # gán pad_mask_id cho các token CLS, SEP, PAD để model bỏ qua
+                else:
+                    label_ids.append(all_tags[i][word_id])
             
-            # Special tokens
-            tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
-            labels = [self.pad_mask_id] + labels + [self.pad_mask_id]
+            labels_batch.append(label_ids)        
+        label_tensor = torch.tensor(labels_batch, dtype=torch.long)
+        tensor["labels"] = label_tensor
+        return tensor
 
-            input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
-            attention_mask = [1] * len(input_ids)
+# manually tokenize and align labels with slow tokenizer model
+    # def __call__(self, batch: list) -> Mapping[str, torch.Tensor]:
 
-            # Truncating
-            if len(input_ids) > self.max_length:
-                input_ids = input_ids[:self.max_length]
-                attention_mask = attention_mask[:self.max_length]
-                labels = labels[:self.max_length]
+        # all_words, all_tags = zip(*batch)
+        # tokenized_inputs = []
+        # labels_batch = []
+
+        # for words, tags in zip(all_words, all_tags):
+        #     tokens = []
+        #     labels = []
+        #     for word, tag in zip(words, tags):
+        #         word_tokens = self.tokenizer.tokenize(word)
+        #         if not word_tokens:
+        #             word_tokens = [self.tokenizer.unk_token]
+        #         tokens.extend(word_tokens)
+        #         # Gán nhãn cho tất cả các sub-tokens của từ đó
+        #         labels.append(tag)  # Gán cho sub-token đầu tiên
+        #         for _ in word_tokens[1:]:
+        #             labels.append(self.pad_mask_id)
             
-            # Padding
-            padding_length = self.max_length - len(input_ids)
-            if padding_length > 0:
-                input_ids = input_ids + [self.tokenizer.pad_token_id] * padding_length
-                attention_mask = attention_mask + [0] * padding_length
-                labels = labels + [self.pad_mask_id] * padding_length
+        #     # Special tokens
+        #     tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
+        #     labels = [self.pad_mask_id] + labels + [self.pad_mask_id]
 
-            tokenized_inputs.append({
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-            })
-            labels_batch.append(labels)
+        #     input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        #     attention_mask = [1] * len(input_ids)
+
+        #     # Truncating
+        #     if len(input_ids) > self.max_length:
+        #         input_ids = input_ids[:self.max_length]
+        #         attention_mask = attention_mask[:self.max_length]
+        #         labels = labels[:self.max_length]
+            
+        #     # Padding
+        #     padding_length = self.max_length - len(input_ids)
+        #     if padding_length > 0:
+        #         input_ids = input_ids + [self.tokenizer.pad_token_id] * padding_length
+        #         attention_mask = attention_mask + [0] * padding_length
+        #         labels = labels + [self.pad_mask_id] * padding_length
+
+        #     tokenized_inputs.append({
+        #         "input_ids": input_ids,
+        #         "attention_mask": attention_mask,
+        #     })
+        #     labels_batch.append(labels)
         
-        batch_input_ids = torch.tensor([item["input_ids"] for item in tokenized_inputs], dtype=torch.long)
-        batch_attention_mask = torch.tensor([item["attention_mask"] for item in tokenized_inputs], dtype=torch.long)
-        batch_labels = torch.tensor(labels_batch, dtype=torch.long)
+        # batch_input_ids = torch.tensor([item["input_ids"] for item in tokenized_inputs], dtype=torch.long)
+        # batch_attention_mask = torch.tensor([item["attention_mask"] for item in tokenized_inputs], dtype=torch.long)
+        # batch_labels = torch.tensor(labels_batch, dtype=torch.long)
 
-        return {
-            "input_ids": batch_input_ids,
-            "attention_mask": batch_attention_mask,
-            "labels": batch_labels
-        }
+        # return {
+        #     "input_ids": batch_input_ids,
+        #     "attention_mask": batch_attention_mask,
+        #     "labels": batch_labels
+        # }

@@ -8,7 +8,7 @@ from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
 )
-
+from tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
 from training.dataloader import Dataset, LlmDataCollator
 from training.evaluate import Tester
 from training.trainer import LlmTrainer
@@ -31,7 +31,7 @@ parser.add_argument("--learning_rate", type=float, default=2e-5)
 parser.add_argument("--weight_decay", type=float, default=0.01)
 parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--pad_mask_id", type=int, default=-100)
-parser.add_argument("--model", type=str, default="vinai/phobert-base-v2")
+parser.add_argument("--model", type=str, default="vinai/phobert-base")
 parser.add_argument("--pin_memory", dest="pin_memory", action="store_true", default=False)
 parser.add_argument("--save_dir", type=str, default="./bert-classification")
 parser.add_argument("--train_batch_size", type=int, default=16)
@@ -45,20 +45,20 @@ parser.add_argument("--seed", type=int, default=42)
 args = parser.parse_args()
 
 
-def get_tokenizer(checkpoint: str) -> AutoTokenizer:
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint, add_prefix_space=True, use_fast = True)
+def get_tokenizer(checkpoint: str) -> PhobertTokenizerFast:
+    tokenizer = PhobertTokenizerFast.from_pretrained(checkpoint, add_prefix_space=True, use_fast = True)
     return tokenizer
 
 
 def get_model(
-    checkpoint: str, device: str, num_labels: str, id2label: list, label2id: list
+    checkpoint: str, device: str, num_labels: str, id2label: list, label2id: list, tokenizer: PhobertTokenizerFast
     ) -> AutoModelForTokenClassification:
     model = AutoModelForTokenClassification.from_pretrained(
         checkpoint,
         num_labels=num_labels,
         id2label=id2label,
         label2id=label2id,
-        ignore_mismatched_sizes=True,
+        # ignore_mismatched_sizes=True,
     )
     model.resize_token_embeddings(len(tokenizer))
     model = model.to(device)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     collator = LlmDataCollator(tokenizer=tokenizer, max_length=args.max_length, pad_mask_id=args.pad_mask_id)
 
-    model = get_model(args.model, args.device, num_labels=len(unique_labels), id2label=id2label, label2id=label2id)
+    model = get_model(args.model, args.device, num_labels=len(unique_labels), id2label=id2label, label2id=label2id, tokenizer=tokenizer)
     count_parameters(model)
 
     trainer = LlmTrainer(
