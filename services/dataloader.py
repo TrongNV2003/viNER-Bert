@@ -1,7 +1,6 @@
 import json
 from typing import List, Mapping, Tuple
 
-import numpy as np
 import torch
 from transformers import AutoTokenizer
 

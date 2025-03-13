@@ -1,10 +1,9 @@
-import time
-import numpy as np
-import torch
-import torch.nn as nn
-from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
-from torch.utils.data import DataLoader
 import json
+import time
+import torch
+import numpy as np
+from torch.utils.data import DataLoader
+from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
 
 class Tester:
     def __init__(
@@ -29,16 +28,6 @@ class Tester:
         self.model = model.to(self.device)
 
     def evaluate(self):
-        """
-        This function will eval the model on test set and return the accuracy, F1-score and latency
-
-        Parameters:
-            None
-
-        Returns:
-            None
-        """
-
         self.model.eval()
         latencies = []
         all_labels = []
@@ -46,7 +35,6 @@ class Tester:
         total_loss = 0
         results = []
         
-        start_time = time.time()    #throughput
         with torch.no_grad():
             for batch in self.test_loader:
                 text_input_ids = batch["input_ids"].to(self.device)
@@ -90,7 +78,6 @@ class Tester:
                         "predicted_labels": predicted_label_names,
                         "latency": float(latency),
                     })
-        total_time = time.time() - start_time
         num_samples = len(results)
 
         with open(self.output_file, "w", encoding="utf-8") as f:
@@ -100,20 +87,9 @@ class Tester:
         self.score(all_labels, all_preds)
         self.calculate_latency(latencies)
 
-        throughput = num_samples / total_time
         print(f"num samples: {num_samples}")
-        print(f"Throughput: {throughput:.2f} samples/s")
 
     def _map_labels(self, label_indices: list) -> list:
-        """
-        Ánh xạ các chỉ số nhãn sang tên nhãn.
-
-        Args:
-            label_indices (list): Danh sách chỉ số nhãn của một sequence.
-
-        Returns:
-            list: Danh sách tên nhãn tương ứng.
-        """
         return [self.labels_mapping.get(idx, "O") for idx in label_indices]
 
     def score(self, true_labels: list, preds: list) -> None:
@@ -129,9 +105,6 @@ class Tester:
         true_labels_names = [self.labels_mapping.get(idx, "O") for idx in true_labels]
         preds_labels_names = [self.labels_mapping.get(idx, "O") for idx in preds]
 
-        # Sử dụng seqeval yêu cầu định dạng là list của list
-        # Vì bạn đang làm token-level, nên cần chuyển thành word-level nếu cần
-        # Tuy nhiên, với việc đã lọc các sub-tokens, bạn có thể tính toán trực tiếp
 
         # Tạo danh sách các sequence, giả sử tất cả thuộc về một sequence
         true_labels_names = [true_labels_names]
@@ -148,14 +121,5 @@ class Tester:
         print(f"F1 Score: {f1 * 100:.2f}%")
 
     def calculate_latency(self, latencies: list) -> None:
-        """
-        Tính toán và in ra latency P99.
-
-        Args:
-            latencies (list): Danh sách các giá trị latency.
-
-        Returns:
-            None
-        """
         p99_latency = np.percentile(latencies, 99)
         print(f"P99 Latency: {p99_latency * 1000:.2f} ms")
