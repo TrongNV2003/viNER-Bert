@@ -28,6 +28,7 @@ parser.add_argument("--seed", type=int, default=42, required=True)
 parser.add_argument("--epochs", type=int, default=10, required=True)
 parser.add_argument("--learning_rate", type=float, default=3e-5, required=True)
 parser.add_argument("--weight_decay", type=float, default=0.01, required=True)
+parser.add_argument("--warmup_steps", type=int, default=500, required=True)
 parser.add_argument("--max_length", type=int, default=256, required=True)
 parser.add_argument("--pad_mask_id", type=int, default=-100, required=True)
 parser.add_argument("--model", type=str, default="vinai/phobert-base-v2", required=True)
@@ -103,6 +104,7 @@ if __name__ == "__main__":
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
+        warmup_steps=args.warmup_steps,
         model=model,
         pin_memory=args.pin_memory,
         save_dir=save_dir,

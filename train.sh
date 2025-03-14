@@ -5,6 +5,7 @@ python -m services.train \
     --epochs 8 \
     --learning_rate 2e-5 \
     --weight_decay 0.01 \
+    --warmup_steps 200 \
     --max_length 256 \
     --pad_mask_id -100 \
     --model vinai/phobert-large \

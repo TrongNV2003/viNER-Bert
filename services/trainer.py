@@ -20,6 +20,7 @@ class LlmTrainer:
         epochs: int,
         learning_rate: float,
         weight_decay: float,
+        warmup_steps: int,
         model: torch.nn.Module,
         tokenizer: AutoTokenizer,
         pin_memory: bool,
@@ -75,7 +76,7 @@ class LlmTrainer:
         self.scheduler = get_scheduler(
             "linear",
             optimizer=self.optimizer,
-            num_warmup_steps=50,
+            num_warmup_steps=warmup_steps,
             num_training_steps=num_training_steps
         )
 
