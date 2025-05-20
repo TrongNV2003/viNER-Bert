@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
-from transformers import AutoTokenizer
-from transformers import get_scheduler
 from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import precision_score, recall_score, f1_score
+from transformers import AutoTokenizer, get_scheduler
 
 import numpy as np
 from tqdm import tqdm
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 from ner.utils.utils import AverageMeter
 
