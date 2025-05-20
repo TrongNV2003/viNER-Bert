@@ -4,8 +4,8 @@ import argparse
 from typing import List
 from transformers import AutoModelForTokenClassification
 
-from services.preprocessing import TextPreprocess
-from services.tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
+from ner.services.preprocessing import TextPreprocess
+from ner.tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
 
 
 class Inference:

@@ -1,20 +1,21 @@
-python -m services.train \
+python -m ner.main \
     --dataloader_workers 2 \
-    --device cuda \
     --seed 42 \
-    --epochs 8 \
-    --learning_rate 2e-5 \
+    --epochs 15 \
+    --learning_rate 5e-5 \
     --weight_decay 0.01 \
     --warmup_steps 200 \
     --max_length 256 \
     --pad_mask_id -100 \
-    --model vinai/phobert-large \
+    --model vinai/phobert-base-v2 \
     --train_batch_size 16 \
-    --valid_batch_size 8 \
-    --test_batch_size 8 \
+    --valid_batch_size 16 \
+    --test_batch_size 16 \
     --train_file dataset/train_word.json \
     --valid_file dataset/dev_word.json \
     --test_file dataset/test_word.json \
-    --output_dir ./models/ner \
+    --output_dir ./models \
     --record_output_file output.json \
-    --evaluate_on_accuracy True \
+    --early_stopping_patience 5 \
+    --early_stopping_threshold 0.001 \
+    --evaluate_on_accuracy \

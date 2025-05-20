@@ -1,5 +1,5 @@
 # viNER-Bert
-Recognize entities from a input sentence.
+Name Entity Recognition from a input sentence.
 
 ## Dataset usage
 In this repo, i use dataset: [PhoNER_COVID19](https://github.com/VinAIResearch/PhoNER_COVID19) for training and evaluating models.

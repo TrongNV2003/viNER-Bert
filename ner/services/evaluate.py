@@ -1,42 +1,49 @@
-import json
-import time
 import torch
+from torch.utils.data import DataLoader, Dataset
+
+import time
+import json
 import numpy as np
-from torch.utils.data import DataLoader
+from tqdm import tqdm
+from typing import Optional, Callable
 from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
 
-class Tester:
+
+class TestingArguments:
     def __init__(
         self,
+        dataloader_workers: int,
+        device: str,
         model: torch.nn.Module,
-        test_loader: DataLoader,
-        output_file: str,
-        labels_mapping: dict,
+        pin_memory: bool,
+        test_set: Dataset,
+        test_batch_size: int,
+        id2label: dict,
+        collate_fn: Optional[Callable] = None,
+        output_file: Optional[str] = None,
     ) -> None:
-        """
-        Args:
-            model (torch.nn.Module): Mô hình đã huấn luyện.
-            test_loader (DataLoader): DataLoader cho tập test.
-            output_file (str): Đường dẫn file để lưu kết quả.
-            labels_mapping (dict): Từ điển ánh xạ từ chỉ số nhãn sang tên nhãn, ví dụ {0: "O", 1: "B-PER", ...}.
-        """
-        self.test_loader = test_loader
+        self.id2label = id2label
         self.output_file = output_file
-        self.labels_mapping = labels_mapping
-
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
         self.model = model.to(self.device)
+        self.test_loader = DataLoader(
+            test_set,
+            batch_size=test_batch_size,
+            num_workers=dataloader_workers,
+            pin_memory=pin_memory,
+            shuffle=False,
+            collate_fn=collate_fn,
+        )
 
     def evaluate(self):
         self.model.eval()
-        latencies = []
-        all_labels = []
-        all_preds = []
-        total_loss = 0
         results = []
+        latencies = []
+        all_preds = []
+        all_labels = []
         
         with torch.no_grad():
-            for batch in self.test_loader:
+            for batch in tqdm(self.test_loader, total=len(self.test_loader), unit="batches"):
                 text_input_ids = batch["input_ids"].to(self.device)
                 text_attention_mask = batch["attention_mask"].to(self.device)
                 labels = batch["labels"].to(self.device)
@@ -51,9 +58,6 @@ class Tester:
                 batch_end_time = time.time()
                 latency = batch_end_time - batch_start_time
                 latencies.append(latency)
-
-                loss = outputs.loss
-                total_loss += loss.item()
 
                 preds = torch.argmax(logits, dim=-1)
 
@@ -78,7 +82,6 @@ class Tester:
                         "predicted_labels": predicted_label_names,
                         "latency": float(latency),
                     })
-        num_samples = len(results)
 
         with open(self.output_file, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=4)
@@ -87,39 +90,39 @@ class Tester:
         self.score(all_labels, all_preds)
         self.calculate_latency(latencies)
 
+        num_samples = len(results)
         print(f"num samples: {num_samples}")
 
     def _map_labels(self, label_indices: list) -> list:
-        return [self.labels_mapping.get(idx, "O") for idx in label_indices]
+        return [self.id2label.get(idx, "O") for idx in label_indices]
 
-    def score(self, true_labels: list, preds: list) -> None:
-        """
-        Tính toán và in ra các chỉ số Precision, Recall, F1-score.
-
-        Args:
-            true_labels (list): Danh sách các sequence nhãn thực tế.
-            preds (list): Danh sách các sequence nhãn dự đoán.
-        """
-
-        # Chuyển đổi các nhãn thành tên nhãn
-        true_labels_names = [self.labels_mapping.get(idx, "O") for idx in true_labels]
-        preds_labels_names = [self.labels_mapping.get(idx, "O") for idx in preds]
+    def score(self, all_labels: list, all_preds: list) -> None:
+        true_labels = [self.id2label.get(idx, "O") for idx in all_labels]
+        preds_labels = [self.id2label.get(idx, "O") for idx in all_preds]
 
 
         # Tạo danh sách các sequence, giả sử tất cả thuộc về một sequence
-        true_labels_names = [true_labels_names]
-        preds_labels_names = [preds_labels_names]
+        true_labels = [true_labels]
+        preds_labels = [preds_labels]
 
-        precision = precision_score(true_labels_names, preds_labels_names)
-        recall = recall_score(true_labels_names, preds_labels_names)
-        f1 = f1_score(true_labels_names, preds_labels_names)
-        report = classification_report(true_labels_names, preds_labels_names)
-
+        precision = precision_score(true_labels, preds_labels, average="weighted")
+        recall = recall_score(true_labels, preds_labels, average="weighted")
+        f1 = f1_score(true_labels, preds_labels, average="weighted")
+        report = classification_report(true_labels, preds_labels)
         print(report)
         print(f"Precision: {precision * 100:.2f}%")
         print(f"Recall: {recall * 100:.2f}%")
         print(f"F1 Score: {f1 * 100:.2f}%")
 
     def calculate_latency(self, latencies: list) -> None:
-        p99_latency = np.percentile(latencies, 99)
-        print(f"P99 Latency: {p99_latency * 1000:.2f} ms")
+        stats = {
+            "p95_ms": float(np.percentile(latencies, 95) * 1000),
+            "p99_ms": float(np.percentile(latencies, 99) * 1000),
+            "mean_ms": float(np.mean(latencies) * 1000),
+        }
+        print("\nLatency Statistics:")
+        print(f"P95 Latency: {stats['p95_ms']:.2f} ms")
+        print(f"P99 Latency: {stats['p99_ms']:.2f} ms")
+        print(f"Mean Latency: {stats['mean_ms']:.2f} ms")
+        return stats
+        

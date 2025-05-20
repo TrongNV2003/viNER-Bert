@@ -4,17 +4,10 @@ from typing import List, Mapping, Tuple
 import torch
 from transformers import AutoTokenizer
 
+
 class Dataset:
     def __init__(self, json_file: str, label_mapping: dict) -> None:
-        """
-        Args:
-            json_file (str): Path to the JSON file.
-            label_mapping (dict): Từ điển { "O": 0, "B-LOC": 1, "I-LOC": 2, ... }
-        """
-
         data = []
-        # Nếu file là danh sách JSON duy nhất => dùng json.load
-        # Nếu mỗi dòng một JSON => duyệt từng line
         with open(json_file, "r", encoding="utf-8") as f:
             for line in f:
                 data.append(json.loads(line))
@@ -26,14 +19,6 @@ class Dataset:
         return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[List[str], List[int]]:
-        """
-        Get the item at the given index
-
-        Returns:
-            text: the text of the item
-            labels: Multi-label vector
-        """
-
         item = self.data[index]
         words = item["words"]
         tags = item["tags"]
@@ -41,21 +26,17 @@ class Dataset:
         labels = [self.label_mapping[tag] for tag in tags]
         return words, labels
 
-
-class LlmDataCollator:
+class DataCollator:
     def __init__(self, tokenizer: AutoTokenizer, max_length: int, pad_mask_id: int = -100) -> None:
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.pad_mask_id = pad_mask_id
 
-# Fast tokenize and align labels with Phobert tokenizer model
     def __call__(self, batch: list) -> Mapping[str, torch.Tensor]:
         """
-        Tokenize the batch of data and align labels with tokenized input.
-        
+        Fast tokenize and align labels with Phobert tokenizer model
         Args:
             batch (list): List of tuples [(words, labels), ...]
-        
         Returns:
             dict: Tokenized data with aligned labels.
         """
