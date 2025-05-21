@@ -2,3 +2,4 @@ __pycache__
 _debugger.py
 models
 NER_with_BERT.ipynb
+results

@@ -110,9 +110,9 @@ class TestingArguments:
         f1 = f1_score(true_labels, preds_labels, average="weighted")
         report = classification_report(true_labels, preds_labels)
         print(report)
-        print(f"Precision: {precision * 100:.2f}%")
-        print(f"Recall: {recall * 100:.2f}%")
-        print(f"F1 Score: {f1 * 100:.2f}%")
+        print(f"Precision: {precision * 100:.2f}")
+        print(f"Recall: {recall * 100:.2f}")
+        print(f"F1 Score: {f1 * 100:.2f}")
 
     def calculate_latency(self, latencies: list) -> None:
         stats = {

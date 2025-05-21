@@ -58,7 +58,7 @@ parser.add_argument("--pin_memory", dest="pin_memory", action="store_true", defa
 args = parser.parse_args()
 
 def get_tokenizer(checkpoint: str) -> PhobertTokenizerFast:
-    tokenizer = PhobertTokenizerFast.from_pretrained(checkpoint, add_prefix_space=True, use_fast = True)
+    tokenizer = PhobertTokenizerFast.from_pretrained(checkpoint, add_prefix_space=True, use_fast=True)
     return tokenizer
 
 def get_model(

@@ -8,6 +8,7 @@ python -m ner.main \
     --max_length 256 \
     --pad_mask_id -100 \
     --model vinai/phobert-base-v2 \
+    --pin_memory \
     --train_batch_size 16 \
     --valid_batch_size 16 \
     --test_batch_size 16 \
