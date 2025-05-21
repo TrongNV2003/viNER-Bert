@@ -36,7 +36,7 @@ class Inference:
         self.model = model.to(self.device)
         self.model.eval()
 
-    def run(self, texts: List[str], max_length: int = 128, output_file: str = None) -> List[dict]:
+    def run(self, texts: List[str], max_length: int = 256, output_file: str = None) -> List[dict]:
         """
         Infer trên một hoặc nhiều context được cung cấp
 
@@ -57,36 +57,27 @@ class Inference:
             tokenized_inputs = self.tokenizer(
                 processed_text,
                 is_split_into_words=True,
-                return_tensors="pt",
+                max_length=max_length,
                 padding=True,
                 truncation=True,
-                max_length=max_length,
-                return_offsets_mapping=True
+                return_tensors="pt",
             )
 
             input_ids = tokenized_inputs["input_ids"].to(self.device)
             attention_mask = tokenized_inputs["attention_mask"].to(self.device)
-            word_ids = tokenized_inputs.word_ids(batch_index=0)  # Lấy word_ids cho batch đầu tiên
+            word_ids = tokenized_inputs.word_ids(batch_index=0)
             with torch.no_grad():
                 outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
                 logits = outputs.logits
 
-            # Lấy chỉ số nhãn dự đoán cho mỗi token
-            predictions = torch.argmax(logits, dim=-1).cpu().numpy()[0]  # batch_size=1
-
-            # Chuyển các chỉ số nhãn thành tên nhãn
+            predictions = torch.argmax(logits, dim=-1).cpu().numpy()[0]
             predicted_label_names = self._map_labels(predictions)
-
-            # Lấy các từ gốc và loại bỏ các token padding
-            tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
-            # Nếu đã sử dụng `is_split_into_words=True`, có thể cần ánh xạ lại với từ gốc
-
-            # Tạo danh sách các từ và nhãn tương ứng, loại bỏ padding và các token đặc biệt
+            # tokens = self.tokenizer.convert_ids_to_tokens(input_ids[0])
             word_labels = []
 
             for idx, word_id in enumerate(word_ids):
                 if word_id is None:
-                    continue  # Bỏ qua các token đặc biệt
+                    continue
 
                 label = predicted_label_names[idx]
                 word_labels.append({'token': processed_text[word_id], 'label': label})
@@ -108,13 +99,13 @@ class Inference:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="vinai/phobert-base-v2", required=True)
-    parser.add_argument("--output_dir", type=str, default="./models/ner", required=True)
+    parser.add_argument("--output_dir", type=str, default="./models", required=True)
     parser.add_argument("--input", type=str, required=True)
     parser.add_argument("--record_output_file", type=str, default="output_infer.json")
     args = parser.parse_args()
 
     model_name = args.model.split('/')[-1]
-    save_dir = f"{args.output_dir}-{model_name}"
+    save_dir = f"{args.output_dir}/{model_name}"
 
     tokenizer = PhobertTokenizerFast.from_pretrained(save_dir)
     model = AutoModelForTokenClassification.from_pretrained(save_dir)
@@ -122,14 +113,12 @@ if __name__ == "__main__":
     model.to(device)
     model.eval()
 
-    id2label = model.config.id2label
-
     text = "Xin chào các bạn, tôi là Trọng, tôi năm nay 21 tuổi. Tôi đến từ Hà Nội, mảnh đất của Việt Nam. Hôm nay tôi đi khám ở bệnh viện Bạch Mai. Tôi vào thăm bệnh nhân bị COVID-19 chiều ngày 15 tháng 9"
 
-    infer = Inference(model, tokenizer, id2label, device)
+    infer = Inference(model, tokenizer=tokenizer, id2label=model.config.id2label, device=device)
 
     predictions = infer.run(
-        args.input,
+        [args.input],
         max_length=256,
         output_file=args.record_output_file
     )
@@ -142,7 +131,6 @@ if __name__ == "__main__":
         print("Text:", output_text)
         print("Tokens:", tokens)
         print("Labels:", labels)
-
 
 
 """OUTPUT:
