@@ -18,11 +18,9 @@ class TestingArguments:
         pin_memory: bool,
         test_set: Dataset,
         test_batch_size: int,
-        id2label: dict,
         collate_fn: Optional[Callable] = None,
         output_file: Optional[str] = None,
     ) -> None:
-        self.id2label = id2label
         self.output_file = output_file
         self.device = device
         self.model = model.to(self.device)
@@ -94,21 +92,20 @@ class TestingArguments:
         print(f"num samples: {num_samples}")
 
     def _map_labels(self, label_indices: list) -> list:
-        return [self.id2label.get(idx, "O") for idx in label_indices]
+        return [self.model.config.id2label[idx] for idx in label_indices]
 
     def score(self, all_labels: list, all_preds: list) -> None:
-        true_labels = [self.id2label.get(idx, "O") for idx in all_labels]
-        preds_labels = [self.id2label.get(idx, "O") for idx in all_preds]
-
+        true_labels = [self.model.config.id2label[idx] for idx in all_labels]
+        preds_labels = [self.model.config.id2label[idx] for idx in all_preds]
 
         # Tạo danh sách các sequence, giả sử tất cả thuộc về một sequence
         true_labels = [true_labels]
         preds_labels = [preds_labels]
 
-        precision = precision_score(true_labels, preds_labels, average="weighted")
-        recall = recall_score(true_labels, preds_labels, average="weighted")
-        f1 = f1_score(true_labels, preds_labels, average="weighted")
-        report = classification_report(true_labels, preds_labels)
+        precision = precision_score(true_labels, preds_labels, average="weighted", zero_division=0)
+        recall = recall_score(true_labels, preds_labels, average="weighted", zero_division=0)
+        f1 = f1_score(true_labels, preds_labels, average="weighted", zero_division=0)
+        report = classification_report(true_labels, preds_labels, zero_division=0)
         print(report)
         print(f"Precision: {precision * 100:.2f}")
         print(f"Recall: {recall * 100:.2f}")

@@ -91,9 +91,9 @@ if __name__ == "__main__":
 
     tokenizer = get_tokenizer(args.model)
     
-    train_set = Dataset(json_file=args.train_file, label_mapping=label2id)
-    valid_set = Dataset(json_file=args.valid_file, label_mapping=label2id)
-    test_set = Dataset(json_file=args.test_file, label_mapping=label2id)
+    train_set = Dataset(json_file=args.train_file, label2id=label2id)
+    valid_set = Dataset(json_file=args.valid_file, label2id=label2id)
+    test_set = Dataset(json_file=args.test_file, label2id=label2id)
 
     collator = DataCollator(tokenizer=tokenizer, max_length=args.max_length, pad_mask_id=args.pad_mask_id)
 
@@ -151,7 +151,6 @@ if __name__ == "__main__":
         pin_memory=args.pin_memory,
         test_set=test_set,
         test_batch_size=args.test_batch_size,
-        id2label=id2label,
         collate_fn=collator,
         output_file=args.record_output_file,
     )

@@ -6,14 +6,14 @@ from transformers import AutoTokenizer
 
 
 class Dataset:
-    def __init__(self, json_file: str, label_mapping: dict) -> None:
+    def __init__(self, json_file: str, label2id: dict) -> None:
         data = []
         with open(json_file, "r", encoding="utf-8") as f:
             for line in f:
                 data.append(json.loads(line))
         
         self.data = data
-        self.label_mapping = label_mapping
+        self.label2id = label2id
 
     def __len__(self) -> int:
         return len(self.data)
@@ -23,7 +23,7 @@ class Dataset:
         words = item["words"]
         tags = item["tags"]
 
-        labels = [self.label_mapping[tag] for tag in tags]
+        labels = [self.label2id[tag] for tag in tags]
         return words, labels
 
 class DataCollator:
