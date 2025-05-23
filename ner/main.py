@@ -1,3 +1,6 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import time
 import random
 import argparse
@@ -22,7 +25,6 @@ def set_seed(seed: int) -> None:
         torch.backends.cudnn.benchmark = False
 
 def get_vram_usage(device):
-    """Trả về VRAM tối đa đã sử dụng trong quá trình chạy (GB)."""
     if not torch.cuda.is_available():
         return 0.0
     return torch.cuda.max_memory_allocated(device) / (1024 ** 3)
@@ -43,6 +45,7 @@ parser.add_argument("--warmup_steps", type=int, default=500)
 parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--pad_mask_id", type=int, default=-100)
 parser.add_argument("--model", type=str, default="vinai/phobert-base-v2", required=True)
+parser.add_argument("--pin_memory", dest="pin_memory", action="store_true", default=False)
 parser.add_argument("--train_batch_size", type=int, default=16, required=True)
 parser.add_argument("--valid_batch_size", type=int, default=8, required=True)
 parser.add_argument("--test_batch_size", type=int, default=8, required=True)
@@ -54,7 +57,6 @@ parser.add_argument("--record_output_file", type=str, default="output.json", req
 parser.add_argument("--early_stopping_patience", type=int, default=5, required=True)
 parser.add_argument("--early_stopping_threshold", type=float, default=0.001)
 parser.add_argument("--evaluate_on_accuracy", action="store_true", default=False)
-parser.add_argument("--pin_memory", dest="pin_memory", action="store_true", default=False)
 args = parser.parse_args()
 
 def get_tokenizer(checkpoint: str) -> PhobertTokenizerFast:
