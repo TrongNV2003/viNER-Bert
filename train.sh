@@ -1,4 +1,4 @@
-python -m ner.main \
+python -m main \
     --dataloader_workers 2 \
     --seed 42 \
     --epochs 15 \
