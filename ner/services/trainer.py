@@ -6,6 +6,7 @@ from transformers import AutoTokenizer, get_scheduler
 
 import numpy as np
 from tqdm import tqdm
+from loguru import logger
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 from ner.utils.utils import AverageMeter
@@ -19,7 +20,7 @@ class TrainingArguments:
         epochs: int,
         learning_rate: float,
         weight_decay: float,
-        warmup_steps: int,
+        use_warmup_steps: bool,
         model: torch.nn.Module,
         tokenizer: AutoTokenizer,
         pin_memory: bool,
@@ -38,6 +39,7 @@ class TrainingArguments:
         self.save_dir = save_dir
         self.train_batch_size = train_batch_size
         self.valid_batch_size = valid_batch_size
+        self.use_warmup_steps = use_warmup_steps
 
         self.train_loader = DataLoader(
             train_set,
@@ -74,10 +76,17 @@ class TrainingArguments:
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
 
         num_training_steps = len(self.train_loader) * epochs
+        
+        if self.use_warmup_steps:
+            num_warmup_steps = int(num_training_steps * 0.1)
+        else:
+            num_warmup_steps = 0
+        logger.info(f"Total training steps: {num_training_steps}, Warmup steps: {num_warmup_steps}")
+
         self.scheduler = get_scheduler(
             "linear",
             optimizer=self.optimizer,
-            num_warmup_steps=warmup_steps,
+            num_warmup_steps=num_warmup_steps,
             num_training_steps=num_training_steps
         )
 

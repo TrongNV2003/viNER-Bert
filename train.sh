@@ -4,7 +4,7 @@ python -m main \
     --epochs 15 \
     --learning_rate 3e-5 \
     --weight_decay 0.01 \
-    --warmup_steps 200 \
+    --use_warmup_steps \
     --max_length 256 \
     --pad_mask_id -100 \
     --model vinai/phobert-base-v2 \
