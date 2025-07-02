@@ -136,7 +136,7 @@ class TrainingArguments:
 
             if self.evaluate_on_accuracy:
                 if valid_score > self.best_valid_score + self.early_stopping_threshold:
-                    print(f"Validation accuracy improved from {self.best_valid_score:.4f} to {valid_score:.4f}. Saving...")
+                    print(f"Validation F1 improved from {self.best_valid_score:.4f} to {valid_score:.4f}. Saving...")
                     self.best_valid_score = valid_score
                     self.best_epoch = epoch
                     self._save()
@@ -144,7 +144,7 @@ class TrainingArguments:
                     improved = True
                 else:
                     self.early_stopping_counter += 1
-                    print(f"No improvement in val accuracy. Counter: {self.early_stopping_counter}/{self.early_stopping_patience}")
+                    print(f"No improvement in val F1. Counter: {self.early_stopping_counter}/{self.early_stopping_patience}")
             else:
                 if valid_score < self.best_valid_score - self.early_stopping_threshold:
                     print(f"Validation loss decreased from {self.best_valid_score:.4f} to {valid_score:.4f}. Saving...")
@@ -201,7 +201,8 @@ class TrainingArguments:
 
                 if self.evaluate_on_accuracy and all_preds:
                     accuracy = np.mean(np.array(all_preds) == np.array(all_labels))
-                    tepoch.set_postfix({"valid_loss": eval_loss.avg, "valid_acc": accuracy})
+                    f1 = f1_score(all_labels, all_preds, average="weighted", zero_division=0)
+                    tepoch.set_postfix({"valid_loss": eval_loss.avg, "valid_acc": accuracy, "valid_f1": f1})
                 else:
                     tepoch.set_postfix({"valid_loss": eval_loss.avg})
                 tepoch.update(1)
@@ -211,7 +212,7 @@ class TrainingArguments:
 
         self._print_metrics(all_preds, all_labels)
         
-        return accuracy if self.evaluate_on_accuracy else eval_loss.avg
+        return f1 if self.evaluate_on_accuracy else eval_loss.avg
 
 
     def _print_metrics(self, all_preds: np.ndarray, all_labels: np.ndarray) -> None:

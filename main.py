@@ -1,30 +1,19 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-import json
 import time
 import argparse
 
 import torch
-from transformers import AutoModelForTokenClassification, AutoConfig
+from transformers import AutoModelForTokenClassification, AutoConfig, AutoTokenizer
 
 from ner.services.evaluate import TestingArguments
 from ner.services.trainer import TrainingArguments
 from ner.services.dataloader import Dataset, DataCollator
-from ner.tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
+from ner.phobert_tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast   # only for phobert model
+from ner.utils.get_labels import get_unique_labels
 from ner.utils.model_utils import set_seed, get_vram_usage, count_parameters
 
-
-def get_unique_labels(jsonl_file):
-    unique_labels = set()
-    with open(jsonl_file, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                obj = json.loads(line)
-                unique_labels.update(obj["tags"])
-    print(f"\nDanh sách nhãn: {sorted(unique_labels)}")
-    print(f"Tổng số lượng nhãn: {len(unique_labels)}")
-    return sorted(unique_labels)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 parser = argparse.ArgumentParser()
@@ -39,14 +28,16 @@ parser.add_argument("--pad_mask_id", type=int, default=-100)
 parser.add_argument("--model", type=str, default="vinai/phobert-base-v2", required=True)
 parser.add_argument("--pin_memory", dest="pin_memory", action="store_true", default=False)
 parser.add_argument("--train_batch_size", type=int, default=16, required=True)
-parser.add_argument("--valid_batch_size", type=int, default=8, required=True)
-parser.add_argument("--test_batch_size", type=int, default=8, required=True)
-parser.add_argument("--train_file", type=str, default="dataset/train_word.json", required=True)
-parser.add_argument("--valid_file", type=str, default="dataset/dev_word.json", required=True)
-parser.add_argument("--test_file", type=str, default="dataset/test_word.json", required=True)
+parser.add_argument("--valid_batch_size", type=int, default=16, required=True)
+parser.add_argument("--test_batch_size", type=int, default=16, required=True)
+parser.add_argument("--train_file", type=str, default="dataset/train_word.jsonl", required=True)
+parser.add_argument("--valid_file", type=str, default="dataset/dev_word.jsonl", required=True)
+parser.add_argument("--test_file", type=str, default="dataset/test_word.jsonl", required=True)
+parser.add_argument("--text_col", type=str, default="tokens", help="Column name for text data")
+parser.add_argument("--label_col", type=str, default="ner_tags", help="Column name for label data")
 parser.add_argument("--output_dir", type=str, default="./models", required=True)
 parser.add_argument("--record_output_file", type=str, default="output.json", required=True)
-parser.add_argument("--early_stopping_patience", type=int, default=5, required=True)
+parser.add_argument("--early_stopping_patience", type=int, default=3, required=True)
 parser.add_argument("--early_stopping_threshold", type=float, default=0.001)
 parser.add_argument("--evaluate_on_accuracy", action="store_true", default=False)
 args = parser.parse_args()
@@ -81,15 +72,15 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision('high')
     set_seed(args.seed)
 
-    unique_labels = get_unique_labels(args.train_file)
+    unique_labels = get_unique_labels(args.train_file, label_col=args.label_col)
     label2id = {label: idx for idx, label in enumerate(unique_labels)}
     id2label = {idx: label for idx, label in enumerate(unique_labels)}
 
     tokenizer = get_tokenizer(args.model)
     
-    train_set = Dataset(json_file=args.train_file, label2id=label2id)
-    valid_set = Dataset(json_file=args.valid_file, label2id=label2id)
-    test_set = Dataset(json_file=args.test_file, label2id=label2id)
+    train_set = Dataset(json_file=args.train_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
+    valid_set = Dataset(json_file=args.valid_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
+    test_set = Dataset(json_file=args.test_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
 
     collator = DataCollator(tokenizer=tokenizer, max_length=args.max_length, pad_mask_id=args.pad_mask_id)
 
