@@ -5,7 +5,7 @@ from typing import List
 from transformers import AutoModelForTokenClassification
 
 from ner.services.preprocessing import TextPreprocess
-from ner.tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
+from ner.phobert_tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
 
 
 class Inference:
