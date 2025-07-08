@@ -6,6 +6,7 @@ sys.path.append(my_path)
 import time
 import torch
 import argparse
+from loguru import logger
 from dotenv import load_dotenv
 
 from transformers import (
@@ -18,6 +19,7 @@ from transformers import (
 
 from ner.services.dataloader import Dataset, DataCollator
 from ner.services.callbacks.memory_callback import MemoryLoggerCallback
+from ner.phobert_tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
 from ner.services.metrics import compute_metrics
 from ner.utils.get_labels import get_unique_labels
 from ner.utils.model_utils import set_seed, get_vram_usage, count_parameters
@@ -37,7 +39,6 @@ parser.add_argument("--text_col", type=str, default="tokens", help="Column name 
 parser.add_argument("--label_col", type=str, default="ner_tags", help="Column name for label data")
 parser.add_argument("--optim", type=str, default="adamw_torch_fused", help="Optimizer to use for training")
 parser.add_argument("--lr_scheduler_type", type=str, default="linear", help="Learning rate scheduler type")
-
 parser.add_argument("--output_dir", type=str, default="output", help="Directory to save model and logs")
 parser.add_argument("--num_train_epochs", type=int, default=10, help="Number of training epochs")
 parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
@@ -56,7 +57,7 @@ parser.add_argument("--bf16", action="store_true", default=False, help="Enable b
 parser.add_argument("--metric_for_best_model", type=str, default="epoch", help="Metric to select best model")
 parser.add_argument("--greater_is_better", action="store_true", default=True, help="Whether higher metric is better")
 parser.add_argument("--load_best_model_at_end", action="store_true", default=True, help="Load best model at the end")
-
+parser.add_argument("--use_word_splitter", action="store_true", default=False, help="Split words from ice_tea to ice tea")
 parser.add_argument("--test_batch_size", type=int, default=16, help="Batch size for testing")
 parser.add_argument("--record_output_file", type=str, default="output.json", help="Output file for evaluation results")
 parser.add_argument("--dataloader_num_workers", type=int, default=2, help="Number of dataloader workers")
@@ -65,7 +66,13 @@ parser.add_argument("--report_to", type=str, help="Reporting tool for training m
 args = parser.parse_args()
 
 def get_tokenizer(checkpoint: str):
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint, add_prefix_space=True, use_fast=True)
+    config = AutoConfig.from_pretrained(checkpoint)
+    if "RobertaForMaskedLM" in config.architectures:
+        tokenizer = PhobertTokenizerFast.from_pretrained(checkpoint, use_fast=True)
+        logger.info(f"Using PhobertTokenizerFast for {checkpoint}")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(checkpoint, add_prefix_space=True, use_fast=True)
+        logger.info(f"Using AutoTokenizer for {checkpoint}")
     return tokenizer
 
 def get_model(
@@ -105,9 +112,9 @@ if __name__ == "__main__":
     model = get_model(args.model, device, num_labels=len(unique_labels), id2label=id2label, label2id=label2id)
     max_length = getattr(model.config, 'max_position_embeddings', args.max_length)
     
-    train_set = Dataset(json_file=args.train_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
-    valid_set = Dataset(json_file=args.valid_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
-    test_set = Dataset(json_file=args.test_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col)
+    train_set = Dataset(json_file=args.train_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col, use_word_splitter=args.use_word_splitter)
+    valid_set = Dataset(json_file=args.valid_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col, use_word_splitter=args.use_word_splitter)
+    test_set = Dataset(json_file=args.test_file, label2id=label2id, text_col=args.text_col, label_col=args.label_col, use_word_splitter=args.use_word_splitter)
 
     collator = DataCollator(tokenizer=tokenizer, max_length=max_length, pad_mask_id=args.pad_mask_id)
 
@@ -156,16 +163,14 @@ if __name__ == "__main__":
         callbacks=[MemoryLoggerCallback],
     )
     trainer.train()
-    
     end_time = time.time()
-    print(f"Training time: {(end_time - start_time) / 60:.2f} mins")
+    
+    test_metrics = trainer.evaluate(eval_dataset=test_set)
+    print(f"Test metrics: {test_metrics}")
 
     if torch.cuda.is_available():
         max_vram = get_vram_usage(device)
         print(f"VRAM usage: {max_vram:.2f} GB")
-
-    test_metrics = trainer.evaluate(eval_dataset=test_set)
-    print(f"Test metrics: {test_metrics}")
-
+    print(f"Training time: {(end_time - start_time) / 60:.2f} mins")
     print(f"\nmodel: {args.model}")
     print(f"params: lr {args.learning_rate}, epochs {args.num_train_epochs}")

@@ -7,12 +7,12 @@ python -m main \
     --learning_rate 5e-5 \
     --num_train_epochs 15 \
     --weight_decay 0.01 \
-    --warmup_ratio 0.05 \
+    --warmup_ratio 0.1 \
     --max_length 512 \
     --pad_mask_id -100 \
     --optim adamw_torch_fused \
     --lr_scheduler_type linear \
-    --model /data/vi-roberta-base-emoji/checkpoint-92520 \
+    --model 5CD-AI/visobert-14gb-corpus \
     --pin_memory \
     --per_device_train_batch_size 64 \
     --per_device_eval_batch_size 64 \
@@ -30,7 +30,8 @@ python -m main \
     --logging_steps 100 \
     --logging_dir ./models/logs \
     --fp16 \
-    --metric_for_best_model f1 \
+    --metric_for_best_model eval_f1 \
     --greater_is_better \
     --load_best_model_at_end \
     --report_to mlflow \
+    --use_word_splitter \

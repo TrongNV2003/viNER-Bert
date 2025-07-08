@@ -4,7 +4,6 @@ from typing import List, Mapping, Tuple
 import torch
 from transformers import AutoTokenizer
 
-
 class Dataset:
     def __init__(
         self,
@@ -12,12 +11,22 @@ class Dataset:
         label2id: dict,
         text_col: str,
         label_col: str,
+        use_word_splitter: bool = False,
         ) -> None:
         data = []
         with open(json_file, "r", encoding="utf-8") as f:
             for line in f:
-                data.append(json.loads(line))
-        
+                item = json.loads(line)
+                if use_word_splitter:
+                    words, tags = [], []
+                    for word, tag in zip(item[text_col], item[label_col]):
+                        split_words, split_tags = self._split_word(word, tag)
+                        words.extend(split_words)
+                        tags.extend(split_tags)
+                    item[text_col] = words
+                    item[label_col] = tags
+                data.append(item)
+
         self.data = data
         self.label2id = label2id
         self.text_col = text_col
@@ -26,12 +35,29 @@ class Dataset:
     def __len__(self) -> int:
         return len(self.data)
 
+    def _split_word(self, word, tag):
+        if "_" not in word:
+            return [word], [tag]
+        parts = word.split("_")
+        if tag == "O":
+            return parts, ["O"] * len(parts)
+        elif tag.startswith("B-"):
+            label_type = tag[2:]
+            new_tags = ["B-" + label_type] + ["I-" + label_type] * (len(parts)-1)
+            return parts, new_tags
+        elif tag.startswith("I-"):
+            label_type = tag[2:]
+            new_tags = ["I-" + label_type] * len(parts)
+            return parts, new_tags
+        else:
+            return parts, [tag] * len(parts)
+
     def __getitem__(self, index: int) -> Tuple[List[str], List[int]]:
         item = self.data[index]
         words = item[self.text_col]
         tags = item[self.label_col]
-
         labels = [self.label2id[tag] for tag in tags]
+        
         return words, labels
 
 class DataCollator:
