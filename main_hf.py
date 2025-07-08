@@ -1,10 +1,13 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import sys
 my_path = os.path.abspath(os.path.dirname(__file__).replace("ner", ""))
 sys.path.append(my_path)
 
 import time
 import torch
+import mlflow
 import argparse
 from loguru import logger
 from dotenv import load_dotenv
@@ -21,10 +24,10 @@ from ner.services.dataloader import Dataset, DataCollator
 from ner.services.callbacks.memory_callback import MemoryLoggerCallback
 from ner.phobert_tokenizer_fast.tokenization_phobert_fast import PhobertTokenizerFast
 from ner.services.metrics import compute_metrics
-from ner.utils.get_labels import get_unique_labels
+from ner.utils.get_labels import get_unique_labels, get_full_labels
 from ner.utils.model_utils import set_seed, get_vram_usage, count_parameters
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+mlflow.set_experiment("ner")
 load_dotenv()
 
 
@@ -105,6 +108,7 @@ if __name__ == "__main__":
     set_seed(args.seed)
 
     unique_labels = get_unique_labels(args.train_file, label_col=args.label_col)
+    unique_labels = get_full_labels(unique_labels) if args.use_word_splitter else unique_labels
     label2id = {label: idx for idx, label in enumerate(unique_labels)}
     id2label = {idx: label for idx, label in enumerate(unique_labels)}
 
@@ -164,7 +168,16 @@ if __name__ == "__main__":
     )
     trainer.train()
     end_time = time.time()
-    
+
+    best_model_path = f"{save_dir}/best_model"
+    if not os.path.exists(best_model_path):
+        os.makedirs(best_model_path, exist_ok=True)
+    trainer.save_model(best_model_path)
+    tokenizer.save_pretrained(best_model_path)
+    print(f"Save best model at: {best_model_path}")
+
+
+    # Evaluation
     test_metrics = trainer.evaluate(eval_dataset=test_set)
     print(f"Test metrics: {test_metrics}")
 

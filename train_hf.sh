@@ -4,8 +4,8 @@ export PYTHONPATH=$PYTHONPATH:$PWD
 python -m main \
     --dataloader_num_workers 2 \
     --seed 42 \
-    --learning_rate 5e-5 \
-    --num_train_epochs 15 \
+    --learning_rate 3e-5 \
+    --num_train_epochs 20 \
     --weight_decay 0.01 \
     --warmup_ratio 0.1 \
     --max_length 512 \
